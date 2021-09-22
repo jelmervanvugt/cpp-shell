@@ -152,6 +152,7 @@ int normal(bool showPrompt) {
 	while (cin.good()) {
 		string commandLine = requestCommandLine(showPrompt);
 		Expression expression = parseCommandLine(commandLine);
+	
 		int rc = executeExpression(expression);
 		if (rc != 0)
 			cerr << strerror(rc) << endl;
@@ -164,10 +165,20 @@ int normal(bool showPrompt) {
 int step1(bool showPrompt) {
 	// create communication channel shared between the two processes
 	// ...
+	int mypipe[2];
+	/* Create the pipe. */
+   if (pipe (mypipe))
+     {
+       fprintf (stderr, "Pipe failed.\n");
+       return EXIT_FAILURE;
+     }
 
 	pid_t child1 = fork();
 	if (child1 == 0) {
+		close(mypipe[0]); 
+		
 		// redirect standard output (STDOUT_FILENO) to the input of the shared communication channel
+		 dup2(mypipe[1], STDOUT_FILENO);
 		// free non used resources (why?)
 		Command cmd = {{string("date")}};
 		executeCommand(cmd);
@@ -177,7 +188,10 @@ int step1(bool showPrompt) {
 
 	pid_t child2 = fork();
 	if (child2 == 0) {
+				close(mypipe[1]); 
+
 		// redirect the output of the shared communication channel to the standard input (STDIN_FILENO).
+		dup2(mypipe[0], STDIN_FILENO);
 		// free non used resources (why?)
 		Command cmd = {{string("tail"), string("-c"), string("5")}};
 		executeCommand(cmd);
@@ -185,6 +199,8 @@ int step1(bool showPrompt) {
 	}
 
 	// free non used resources (why?)
+	close(mypipe[0]); 
+	close(mypipe[1]); 
 	// wait on child processes to finish (why both?)
 	waitpid(child1, nullptr, 0);
 	waitpid(child2, nullptr, 0);
@@ -192,9 +208,9 @@ int step1(bool showPrompt) {
 }
 
 int shell(bool showPrompt) {
-	//*
-	return normal(showPrompt);
-	/*/
+	
+	// return normal(showPrompt);
+	
 	return step1(showPrompt);
-	//*/
+	
 }
