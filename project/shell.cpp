@@ -25,11 +25,13 @@
 // although it is good habit, you don't have to type 'std' before many objects by including this line
 using namespace std;
 
-struct Command {
+struct Command
+{
 	vector<string> parts = {};
 };
 
-struct Expression {
+struct Expression
+{
 	vector<Command> commands;
 	string inputFromFile;
 	string outputToFile;
@@ -37,20 +39,23 @@ struct Expression {
 };
 
 // Parses a string to form a vector of arguments. The seperator is a space char (' ').
-vector<string> splitString(const string& str, char delimiter = ' ') {
+vector<string> splitString(const string &str, char delimiter = ' ')
+{
 	vector<string> retval;
-	for (size_t pos = 0; pos < str.length(); ) {
+	for (size_t pos = 0; pos < str.length();)
+	{
 		// look for the next space
 		size_t found = str.find(delimiter, pos);
 		// if no space was found, this is the last word
-		if (found == string::npos) {
+		if (found == string::npos)
+		{
 			retval.push_back(str.substr(pos));
 			break;
 		}
 		// filter out consequetive spaces
 		if (found != pos)
-			retval.push_back(str.substr(pos, found-pos));
-		pos = found+1;
+			retval.push_back(str.substr(pos, found - pos));
+		pos = found + 1;
 	}
 	return retval;
 }
@@ -59,15 +64,17 @@ vector<string> splitString(const string& str, char delimiter = ' ') {
 // always start with the command itself
 // always terminate with a NULL pointer
 // DO NOT CHANGE THIS FUNCTION UNDER ANY CIRCUMSTANCE
-int execvp(const vector<string>& args) {
+int execvp(const vector<string> &args)
+{
 	// build argument list
-	const char** c_args = new const char*[args.size()+1];
-	for (size_t i = 0; i < args.size(); ++i) {
+	const char **c_args = new const char *[args.size() + 1];
+	for (size_t i = 0; i < args.size(); ++i)
+	{
 		c_args[i] = args[i].c_str();
 	}
 	c_args[args.size()] = nullptr;
 	// replace current process with new process as specified
-	::execvp(c_args[0], const_cast<char**>(c_args));
+	::execvp(c_args[0], const_cast<char **>(c_args));
 	// if we got this far, there must be an error
 	int retval = errno;
 	// in case of failure, clean up memory
@@ -76,28 +83,34 @@ int execvp(const vector<string>& args) {
 }
 
 // Executes a command with arguments. In case of failure, returns error code.
-int executeCommand(const Command& cmd) {
-	auto& parts = cmd.parts;
+int executeCommand(const Command &cmd)
+{
+	auto &parts = cmd.parts;
 	if (parts.size() == 0)
 		return EINVAL;
 
 	// execute external commands
 	int retval = execvp(parts);
+
 	return retval;
 }
 
-void displayPrompt() {
+void displayPrompt()
+{
 	char buffer[512];
-	char* dir = getcwd(buffer, sizeof(buffer));
-	if (dir) {
+	char *dir = getcwd(buffer, sizeof(buffer));
+	if (dir)
+	{
 		cout << "\e[32m" << dir << "\e[39m"; // the strings starting with '\e' are escape codes, that the terminal application interpets in this case as "set color to green"/"set color to default"
 	}
 	cout << "$ ";
 	flush(cout);
 }
 
-string requestCommandLine(bool showPrompt) {
-	if (showPrompt) {
+string requestCommandLine(bool showPrompt)
+{
+	if (showPrompt)
+	{
 		displayPrompt();
 	}
 	string retval;
@@ -109,36 +122,61 @@ string requestCommandLine(bool showPrompt) {
 // Here, the user input can be parsed using the following approach.
 // First, divide the input into the distinct commands (as they can be chained, separated by `|`).
 // Next, these commands are parsed separately. The first command is checked for the `<` operator, and the last command for the `>` operator.
-Expression parseCommandLine(string commandLine) {
+Expression parseCommandLine(string commandLine)
+{
 	Expression expression;
 	vector<string> commands = splitString(commandLine, '|');
-	for (size_t i = 0; i < commands.size(); ++i) {
-		string& line = commands[i];
+	for (size_t i = 0; i < commands.size(); ++i)
+	{
+		string &line = commands[i];
 		vector<string> args = splitString(line, ' ');
-		if (i == commands.size() - 1 && args.size() > 1 && args[args.size()-1] == "&") {
+		if (i == commands.size() - 1 && args.size() > 1 && args[args.size() - 1] == "&")
+		{
 			expression.background = true;
-			args.resize(args.size()-1);
+			args.resize(args.size() - 1);
 		}
-		if (i == commands.size() - 1 && args.size() > 2 && args[args.size()-2] == ">") {
-			expression.outputToFile = args[args.size()-1];
-			args.resize(args.size()-2);
+		if (i == commands.size() - 1 && args.size() > 2 && args[args.size() - 2] == ">")
+		{
+			expression.outputToFile = args[args.size() - 1];
+			args.resize(args.size() - 2);
 		}
-		if (i == 0 && args.size() > 2 && args[args.size()-2] == "<") {
-			expression.inputFromFile = args[args.size()-1];
-			args.resize(args.size()-2);
+		if (i == 0 && args.size() > 2 && args[args.size() - 2] == "<")
+		{
+			expression.inputFromFile = args[args.size() - 1];
+			args.resize(args.size() - 2);
 		}
 		expression.commands.push_back({args});
 	}
 	return expression;
 }
 
-int executeExpression(Expression& expression) {
+int executeExpression(Expression &expression)
+{
 	// Check for empty expression
 	if (expression.commands.size() == 0)
 		return EINVAL;
 
 	// Handle intern commands (like 'cd' and 'exit')
+	for (int i = 0; i < expression.commands.size(); i++)
+	{
+		if (expression.commands[i].parts[0] == "exit")
+		{
+			//exits if an exit is found.
+			cout << "Program exited succesfully!\n";
+			exit(EXIT_SUCCESS);
+		}
+		else if (expression.commands[i].parts[0] == "cd")
+		{
+			int ch = chdir(expression.commands[i].parts[1].c_str());
+			if (ch < 0)
+			{
+				cout << "Changing directory not succesfull\n";
+			}
+			continue;
+		}
 	
+	}
+
 	// External commands, executed with fork():
 	// Loop over all commandos, and connect the output and input of the forked processes
 
@@ -148,11 +186,13 @@ int executeExpression(Expression& expression) {
 	return 0;
 }
 
-int normal(bool showPrompt) {
-	while (cin.good()) {
+int normal(bool showPrompt)
+{
+	while (cin.good())
+	{
 		string commandLine = requestCommandLine(showPrompt);
 		Expression expression = parseCommandLine(commandLine);
-	
+
 		int rc = executeExpression(expression);
 		if (rc != 0)
 			cerr << strerror(rc) << endl;
@@ -162,23 +202,25 @@ int normal(bool showPrompt) {
 
 // framework for executing "date | tail -c 5" using raw commands
 // two processes are created, and connected to each other
-int step1(bool showPrompt) {
+int step1(bool showPrompt)
+{
 	// create communication channel shared between the two processes
 	// ...
 	int mypipe[2];
 	/* Create the pipe. */
-   if (pipe (mypipe))
-     {
-       fprintf (stderr, "Pipe failed.\n");
-       return EXIT_FAILURE;
-     }
+	if (pipe(mypipe))
+	{
+		fprintf(stderr, "Pipe failed.\n");
+		return EXIT_FAILURE;
+	}
 
 	pid_t child1 = fork();
-	if (child1 == 0) {
-		close(mypipe[0]); 
-		
+	if (child1 == 0)
+	{
+		close(mypipe[0]);
+
 		// redirect standard output (STDOUT_FILENO) to the input of the shared communication channel
-		 dup2(mypipe[1], STDOUT_FILENO);
+		dup2(mypipe[1], STDOUT_FILENO);
 		// free non used resources (why?)
 		Command cmd = {{string("date")}};
 		executeCommand(cmd);
@@ -187,9 +229,9 @@ int step1(bool showPrompt) {
 	}
 
 	pid_t child2 = fork();
-	if (child2 == 0) {
-				close(mypipe[1]); 
-
+	if (child2 == 0)
+	{
+		close(mypipe[1]);
 		// redirect the output of the shared communication channel to the standard input (STDIN_FILENO).
 		dup2(mypipe[0], STDIN_FILENO);
 		// free non used resources (why?)
@@ -199,18 +241,18 @@ int step1(bool showPrompt) {
 	}
 
 	// free non used resources (why?)
-	close(mypipe[0]); 
-	close(mypipe[1]); 
+	close(mypipe[0]);
+	close(mypipe[1]);
 	// wait on child processes to finish (why both?)
 	waitpid(child1, nullptr, 0);
 	waitpid(child2, nullptr, 0);
 	return 0;
 }
 
-int shell(bool showPrompt) {
-	
-	// return normal(showPrompt);
-	
-	return step1(showPrompt);
-	
+int shell(bool showPrompt)
+{
+
+	return normal(showPrompt);
+
+	// return step1(showPrompt);
 }
