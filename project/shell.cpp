@@ -150,23 +150,11 @@ Expression parseCommandLine(string commandLine)
 	return expression;
 }
 
-int executeExpression(Expression &expression)
+int executeCommands(Expression &expression)
 {
-	// Check for empty expression
-	if (expression.commands.size() == 0)
-		return EINVAL;
-
 	int pipes[expression.commands.size() - 1][2] = {};
 	int READ_END = 0;
 	int WRITE_END = 1;
-	for (int i = 0; i < expression.commands.size(); i++)
-	{
-		if (pipe(pipes[i]))
-		{
-			fprintf(stderr, "Pipe failed.\n");
-			return EXIT_FAILURE;
-		}
-	}
 
 	// Handle intern commands (like 'cd' and 'exit')
 	for (int i = 0; i < expression.commands.size(); i++)
@@ -243,6 +231,12 @@ int executeExpression(Expression &expression)
 		}
 		else
 		{
+			if (pipe(pipes[i]))
+			{
+				fprintf(stderr, "Pipe failed.\n");
+				return EXIT_FAILURE;
+			}
+			
 			pid_t child1 = fork();
 			if (child1 == 0) //child
 			{
@@ -272,9 +266,30 @@ int executeExpression(Expression &expression)
 				close(pipes[i - 1][READ_END]);
 				close(pipes[i - 1][WRITE_END]);
 			}
-			
+
 			waitpid(child1, nullptr, 0);
 		}
+	}
+
+	return 0;
+}
+
+int executeExpression(Expression &expression)
+{
+	// Check for empty expression
+	if (expression.commands.size() == 0)
+		return EINVAL;
+
+	if (expression.background)
+	{
+		if (fork() == 0) //do execute commands in a different process
+		{
+			return executeCommands(expression);
+		}
+	}
+	else
+	{
+		return executeCommands(expression);
 	}
 
 	// External commands, executed with fork():
