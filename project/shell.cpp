@@ -174,14 +174,49 @@ int executeExpression(Expression &expression)
 			}
 			continue;
 		}
-	
+		else
+		{
+			int mypipe[2];
+			/* Create the pipe. */
+			if (pipe(mypipe))
+			{
+				fprintf(stderr, "Pipe failed.\n");
+				return EXIT_FAILURE;
+			}
+
+			pid_t child1 = fork();
+			if (child1 == 0) //child
+			{
+				close(mypipe[1]);
+
+				// redirect the output of the shared communication channel to the standard input (STDIN_FILENO).
+				dup2(mypipe[0], STDIN_FILENO);
+				// free non used resources (why?)
+				executeCommand(expression.commands[++i]);
+				abort(); // if the executable is not found, we should abort. (why?)
+			}
+			else
+			{
+				close(mypipe[0]);
+
+				// redirect standard output (STDOUT_FILENO) to the input of the shared communication channel
+				dup2(mypipe[1], STDOUT_FILENO);
+				// free non used resources (why?)
+				executeCommand(expression.commands[i]);
+				// display nice warning that the executable could not be found
+				abort(); // if the executable is not found, we should abort. (why?)
+			}
+			close(mypipe[0]);
+			close(mypipe[1]);
+			
+			waitpid(child1, nullptr, 0);
+		}
 	}
 
 	// External commands, executed with fork():
 	// Loop over all commandos, and connect the output and input of the forked processes
 
 	// For now, we just execute the first command in the expression. Disable.
-	executeCommand(expression.commands[0]);
 
 	return 0;
 }
