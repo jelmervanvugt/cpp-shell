@@ -167,22 +167,58 @@ int executeExpression(Expression &expression)
 		}
 		else if (expression.commands[i].parts[0] == "cd")
 		{
-			int ch = chdir(expression.commands[i].parts[1].c_str());
 
-			if(expression.outputToFile != "") {
+			if (expression.outputToFile != "")
+			{
 
-				// Mode w: If the file doesn't exist, a new one is created. 
+				// Mode w: If the file doesn't exist, a new one is created.
 				// If the file does exist the content is erased and file is considered as a new empty file.
-				FILE* f = fopen(expression.outputToFile.c_str(), "w");
+				// TODO: has to work for all command, and can only be used for the last command in expression chain
+				FILE *f = fopen(expression.outputToFile.c_str(), "w");
 
-				if(f == NULL) {
-					cout << "Writing output to file failed.";
-				} else {
+				if (f == nullptr)
+				{
+					cout << "Writing output to file failed." << endl;
+				}
+				else
+				{
 					fputs("WoopityScoopity", f);
 					fclose(f);
 				}
 			}
 
+			// TODO: I used the CD command to test the > and < functions, dont forget to revert.
+			int ch;
+
+			if (expression.inputFromFile != "")
+			{
+
+				// Mode r: Opening file in reading mode.
+				FILE *f = fopen(expression.inputFromFile.c_str(), "r");
+
+				if (f == nullptr)
+				{
+					cout << "Reading input from file failed or file does not exist." << endl;
+				}
+				else
+				{
+
+					string str = "";
+
+					int c;
+					while ((c = getc(f)) != EOF)
+					{
+						str.push_back(c);
+					}
+					chdir(str.c_str());
+				}
+
+				fclose(f);
+			}
+			else
+			{
+				ch = chdir(expression.commands[i].parts[1].c_str());
+			}
 
 			if (ch < 0)
 			{
@@ -224,7 +260,7 @@ int executeExpression(Expression &expression)
 			}
 			close(mypipe[0]);
 			close(mypipe[1]);
-			
+
 			waitpid(child1, nullptr, 0);
 		}
 	}
