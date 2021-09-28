@@ -157,7 +157,8 @@ int executeExpression(Expression &expression)
 		return EINVAL;
 
 	int pipes[expression.commands.size() - 1][2] = {};
-
+	int READ_END = 0;
+	int WRITE_END = 1;
 	for (int i = 0; i < expression.commands.size(); i++)
 	{
 		if (pipe(pipes[i]))
@@ -170,6 +171,9 @@ int executeExpression(Expression &expression)
 	// Handle intern commands (like 'cd' and 'exit')
 	for (int i = 0; i < expression.commands.size(); i++)
 	{
+		bool isFirst = i == 0;
+		bool isLast = i == expression.commands.size() - 1;
+
 		if (expression.commands[i].parts[0] == "exit")
 		{
 			//exits if an exit is found.
@@ -244,34 +248,18 @@ int executeExpression(Expression &expression)
 			{
 
 				// redirect the output of the shared communication channel to the standard input (STDIN_FILENO).
-				if (i == 0)
+				if (!isFirst)
 				{
-					close(pipes[0][0]);
-					if (i != expression.commands.size() - 1)
-					{
-						dup2(pipes[0][1], STDOUT_FILENO);
-					}
+					close(pipes[i - 1][WRITE_END]);
+					dup2(pipes[i - 1][READ_END], STDIN_FILENO);
+					close(pipes[i - 1][READ_END]);
 				}
-				else
+
+				if (!isLast)
 				{
-					if (i % 2 == 0)
-					{
-						close(pipes[i][0]);
-						dup2(pipes[i - 1][0], STDIN_FILENO);
-						if (i != expression.commands.size() - 1)
-						{
-							dup2(pipes[i][1], STDOUT_FILENO);
-						}
-					}
-					else
-					{
-						close(pipes[i - 1][1]);
-						dup2(pipes[i - 1][0], STDIN_FILENO);
-						if (i != expression.commands.size() - 1)
-						{
-							dup2(pipes[i][1], STDOUT_FILENO);
-						}
-					}
+					close(pipes[i][READ_END]);
+					dup2(pipes[i][WRITE_END], STDOUT_FILENO);
+					close(pipes[i][WRITE_END]);
 				}
 
 				// free non used resources (why?)
@@ -279,11 +267,13 @@ int executeExpression(Expression &expression)
 				abort(); // if the executable is not found, we should abort. (why?)
 			}
 
-			if (i % 2 == 1 || i == expression.commands.size() - 1)
+			if (!isFirst)
 			{
-				close(pipes[i - 1][0]);
-				close(pipes[i - 1][1]);
+				close(pipes[i - 1][READ_END]);
+				close(pipes[i - 1][WRITE_END]);
 			}
+			
+			waitpid(child1, nullptr, 0);
 		}
 	}
 
