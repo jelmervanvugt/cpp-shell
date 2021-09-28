@@ -168,6 +168,22 @@ int executeExpression(Expression &expression)
 		else if (expression.commands[i].parts[0] == "cd")
 		{
 			int ch = chdir(expression.commands[i].parts[1].c_str());
+
+			if(expression.outputToFile != "") {
+
+				// Mode w: If the file doesn't exist, a new one is created. 
+				// If the file does exist the content is erased and file is considered as a new empty file.
+				FILE* f = fopen(expression.outputToFile.c_str(), "w");
+
+				if(f == NULL) {
+					cout << "Writing output to file failed.";
+				} else {
+					fputs("WoopityScoopity", f);
+					fclose(f);
+				}
+			}
+
+
 			if (ch < 0)
 			{
 				cout << "Changing directory not succesfull\n";
