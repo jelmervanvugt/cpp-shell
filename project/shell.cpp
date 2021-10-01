@@ -11,6 +11,7 @@
 
 // function/class definitions you are going to use
 #include <iostream>
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <stdlib.h>
@@ -171,57 +172,7 @@ int executeCommands(Expression &expression)
 		else if (expression.commands[i].parts[0] == "cd")
 		{
 
-			if (expression.outputToFile != "")
-			{
-
-				// Mode w: If the file doesn't exist, a new one is created.
-				// If the file does exist the content is erased and file is considered as a new empty file.
-				// TODO: has to work for all command, and can only be used for the last command in expression chain
-				FILE *f = fopen(expression.outputToFile.c_str(), "w");
-
-				if (f == nullptr)
-				{
-					cout << "Writing output to file failed." << endl;
-				}
-				else
-				{
-					fputs("WoopityScoopity", f);
-					fclose(f);
-				}
-			}
-
-			// TODO: I used the CD command to test the > and < functions, dont forget to revert.
-			int ch;
-
-			if (expression.inputFromFile != "")
-			{
-
-				// Mode r: Opening file in reading mode.
-				FILE *f = fopen(expression.inputFromFile.c_str(), "r");
-
-				if (f == nullptr)
-				{
-					cout << "Reading input from file failed or file does not exist." << endl;
-				}
-				else
-				{
-
-					string str = "";
-
-					int c;
-					while ((c = getc(f)) != EOF)
-					{
-						str.push_back(c);
-					}
-					chdir(str.c_str());
-				}
-
-				fclose(f);
-			}
-			else
-			{
-				ch = chdir(expression.commands[i].parts[1].c_str());
-			}
+			int ch = chdir(expression.commands[i].parts[1].c_str());
 
 			if (ch < 0)
 			{
@@ -236,20 +187,54 @@ int executeCommands(Expression &expression)
 				fprintf(stderr, "Pipe failed.\n");
 				return EXIT_FAILURE;
 			}
-			
+
 			pid_t child1 = fork();
 			if (child1 == 0) //child
 			{
 
 				// redirect the output of the shared communication channel to the standard input (STDIN_FILENO).
-				if (!isFirst)
+				if (isFirst && expression.outputToFile != "")
+				{
+					int id = open(expression.outputToFile.c_str(), O_CREAT | O_WRONLY, 0777);
+
+					if (id < 0)
+					{
+						cout << "Opening file failed." << endl;
+					}
+					else
+					{
+						dup2(id, STDOUT_FILENO);
+						close(pipes[i][READ_END]);
+						close(pipes[i][WRITE_END]);
+						close(id);
+					}
+				}
+				else if (isLast && expression.inputFromFile != "")
+				{
+					string f = expression.inputFromFile;
+
+					int id = open(f.c_str(), O_RDONLY, S_IRUSR);
+
+					cout << id;
+					if (id < 0)
+					{
+						cout << "Opening file failed, or does not exist." << endl;
+					}
+					else
+					{
+						dup2(id, STDIN_FILENO);
+						close(pipes[i][READ_END]);
+						close(pipes[i][WRITE_END]);
+						close(id);
+					}
+				}
+				if (!isFirst && expression.inputFromFile == "")
 				{
 					close(pipes[i - 1][WRITE_END]);
 					dup2(pipes[i - 1][READ_END], STDIN_FILENO);
 					close(pipes[i - 1][READ_END]);
 				}
-
-				if (!isLast)
+				if (!isLast && expression.outputToFile == "")
 				{
 					close(pipes[i][READ_END]);
 					dup2(pipes[i][WRITE_END], STDOUT_FILENO);
