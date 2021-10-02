@@ -178,7 +178,6 @@ int executeCommands(Expression &expression)
 		}
 	}
 
-	// Handle intern commands (like 'cd' and 'exit')
 	for (int i = 0; i < expression.commands.size(); i++)
 	{
 		bool isFirst = i == 0;
@@ -199,7 +198,9 @@ int executeCommands(Expression &expression)
 			{
 				cout << "Changing directory not succesfull\n";
 			}
-			continue;
+			
+			//if cd is found then only execute that and ignore the other commands. we were allowed to decide how to handle this, and this was the easiest solution.
+			break;
 		}
 		else
 		{
@@ -213,27 +214,26 @@ int executeCommands(Expression &expression)
 			if (child1 == 0) //child
 			{
 
-				// redirect the output of the shared communication channel to the standard input (STDIN_FILENO).
-
+				//whether a file input/output was handled. Handling file has their own flow, so if a file was handled, the normal flow is not necessary anymore.
 				bool fileWasHandled = false;
 
-				if (isFirst && inputFileId >= 0)
+				if (isFirst && inputFileId >= 0) //if is first command and has to read from file
 				{
 					dup2(inputFileId, STDIN_FILENO);
 					if (expression.commands.size() > 1)
 					{
-						dup2(pipes[i][WRITE_END], STDOUT_FILENO);
+						dup2(pipes[i][WRITE_END], STDOUT_FILENO); //if a next command has to executed then write to the pipe. otherwise just write to std out
 					}
 					close(pipes[i][READ_END]);
 					close(pipes[i][WRITE_END]);
 					close(inputFileId);
 					fileWasHandled = true;
 				}
-				if (isLast && outputFileId >= 0)
+				if (isLast && outputFileId >= 0) //if is last command and has to write to file
 				{
-					if (!isFirst)
+					if (!isFirst) // it can be that a command is the first and last command (single command in the list), so we explicetly check whether it's not the first.
 					{
-						dup2(pipes[i - 1][READ_END], STDIN_FILENO);
+						dup2(pipes[i - 1][READ_END], STDIN_FILENO); // if is not first then it has to read from pipe.
 						close(pipes[i - 1][READ_END]);
 						close(pipes[i - 1][WRITE_END]);
 					}
@@ -249,7 +249,7 @@ int executeCommands(Expression &expression)
 					fileWasHandled = true;
 				}
 
-				if (!fileWasHandled)
+				if (!fileWasHandled) //if no file was handled, execute normal flow (no file input/output)
 				{
 					if (!isFirst)
 					{
@@ -289,22 +289,24 @@ int executeExpression(Expression &expression)
 	if (expression.commands.size() == 0)
 		return EINVAL;
 
+	//if background is true then start the command processin in a different process so the parent process can just continue (with a new prompt in the shell for instance.)
 	if (expression.background)
 	{
-		if (fork() == 0) //do execute commands in a different process
+		pid_t pid = fork();
+		if (pid == -1)
+		{
+			cout << "Executing commands in the background not possible. Cause: Creating of child process failed. Try again.";
+		}
+		else if (pid == 0) //do execute commands in a different process
 		{
 			return executeCommands(expression);
 		}
 	}
 	else
 	{
+		//if background is false then just execute normally in the foreground
 		return executeCommands(expression);
 	}
-
-	// External commands, executed with fork():
-	// Loop over all commandos, and connect the output and input of the forked processes
-
-	// For now, we just execute the first command in the expression. Disable.
 
 	return 0;
 }
