@@ -157,6 +157,27 @@ int executeCommands(Expression &expression)
 	int READ_END = 0;
 	int WRITE_END = 1;
 
+	int outputFileId = -999;
+	int inputFileId = -999;
+
+	if (expression.outputToFile != "")
+	{
+		outputFileId = open(expression.outputToFile.c_str(), O_CREAT | O_WRONLY, 0777);
+		if (outputFileId < 0)
+		{
+			cout << "Opening file failed." << endl;
+		}
+	}
+
+	if (expression.inputFromFile != "")
+	{
+		inputFileId = open(expression.inputFromFile.c_str(), O_RDONLY, S_IRUSR);
+		if (inputFileId < 0)
+		{
+			cout << "Opening file failed, or does not exist." << endl;
+		}
+	}
+
 	// Handle intern commands (like 'cd' and 'exit')
 	for (int i = 0; i < expression.commands.size(); i++)
 	{
@@ -193,54 +214,57 @@ int executeCommands(Expression &expression)
 			{
 
 				// redirect the output of the shared communication channel to the standard input (STDIN_FILENO).
-				if (isFirst && expression.outputToFile != "")
-				{
-					int id = open(expression.outputToFile.c_str(), O_CREAT | O_WRONLY, 0777);
 
-					if (id < 0)
-					{
-						cout << "Opening file failed." << endl;
-					}
-					else
-					{
-						dup2(id, STDOUT_FILENO);
-						close(pipes[i][READ_END]);
-						close(pipes[i][WRITE_END]);
-						close(id);
-					}
-				}
-				else if (isLast && expression.inputFromFile != "")
-				{
-					string f = expression.inputFromFile;
+				bool fileWasHandled = false;
 
-					int id = open(f.c_str(), O_RDONLY, S_IRUSR);
-
-					cout << id;
-					if (id < 0)
-					{
-						cout << "Opening file failed, or does not exist." << endl;
-					}
-					else
-					{
-						dup2(id, STDIN_FILENO);
-						close(pipes[i][READ_END]);
-						close(pipes[i][WRITE_END]);
-						close(id);
-					}
-				}
-				if (!isFirst && expression.inputFromFile == "")
+				if (isFirst && inputFileId >= 0)
 				{
-					close(pipes[i - 1][WRITE_END]);
-					dup2(pipes[i - 1][READ_END], STDIN_FILENO);
-					close(pipes[i - 1][READ_END]);
-				}
-				if (!isLast && expression.outputToFile == "")
-				{
+					dup2(inputFileId, STDIN_FILENO);
+					if (expression.commands.size() > 1)
+					{
+						dup2(pipes[i][WRITE_END], STDOUT_FILENO);
+					}
 					close(pipes[i][READ_END]);
-					dup2(pipes[i][WRITE_END], STDOUT_FILENO);
 					close(pipes[i][WRITE_END]);
+					close(inputFileId);
+					fileWasHandled = true;
+				}
+				if (isLast && outputFileId >= 0)
+				{
+					if (!isFirst)
+					{
+						dup2(pipes[i - 1][READ_END], STDIN_FILENO);
+						close(pipes[i - 1][READ_END]);
+						close(pipes[i - 1][WRITE_END]);
+					}
+					else
+					{
+						close(pipes[i][READ_END]);
+						close(pipes[i][WRITE_END]);
+					}
+
+					dup2(outputFileId, STDOUT_FILENO);
+
+					close(outputFileId);
+					fileWasHandled = true;
 				}
 
+				if (!fileWasHandled)
+				{
+					if (!isFirst)
+					{
+						close(pipes[i - 1][WRITE_END]);
+						dup2(pipes[i - 1][READ_END], STDIN_FILENO);
+						close(pipes[i - 1][READ_END]);
+					}
+
+					if (!isLast)
+					{
+						close(pipes[i][READ_END]);
+						dup2(pipes[i][WRITE_END], STDOUT_FILENO);
+						close(pipes[i][WRITE_END]);
+					}
+				}
 				// free non used resources (why?)
 				executeCommand(expression.commands[i]);
 				abort(); // if the executable is not found, we should abort. (why?)
