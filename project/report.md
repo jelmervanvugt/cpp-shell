@@ -17,3 +17,13 @@ The ancestor process (the very first process) holds a `pipes` array containing a
 During each iteration a new pipe will be made before forking. This pipe will be made and assigned to `pipes[i]` (`i` is the current iteration number). After forking the child will also have access to `pipes[i]`. Each child process will redirect the `STDIN_FILENO` to `pipes[i-1][READ_END]` using `dup2`. The first child is an exception as the first child process has to read the user input. Besides redirecting the `STDIN_FILENO` also the `STDOUT_FILENO` will be redirected to `pipes[i][WRITE_END]` for all children processes except for the last child process. The last child process will have to output the command results to the terminal.
 
 This is in essence how the communication between the pipes is done. One child process writes to the write end of the pipe and the next one will read it from the read end of that same pipe.
+
+### Executing expression in the background
+When an expression from user input ends with a `&`, the expression must be executed in the background. The implementation of this is very simple. A new child process is created using `fork` and in that child process the `executeCommands` function is executed. This will evaluate the expression in the "background" and the parent process will continue which in this case is prompting the user again for input. When the background process is done evaluating the expression, it will just output the result in the terminal.
+
+### Reading input from file and writing to file
+If the first command ends with `< [file]`, instead of using the user input as input it will open the specified file and read it and use that as input. 
+
+This is done by executing this: `open(expression.inputFromFile.c_str(), O_RDONLY, S_IRUSR);`. This will return a positive number if opening the file succeeded. This is the file descriptor id. If opening the file succeeded the `STDIN_FILENO` will be redirected to the file by using `dup2`. If there is a next command the `STDOUT_FILENO` also has to be redirected to `pipes[i][WRITE_END]` so that the next command can read it from the read end of the pipe. Otherwise just let it output to the terminal.
+
+For writing to a file, the idea is the exactly the same. For opening a file we do: `open(expression.outputToFile.c_str(), O_CREAT | O_WRONLY, 0777);`. This will also return a positive number if it succeeded. If it succeeded we will redirect the `STDOUT_FILENO` to the specified file using the returned number (file descriptor id). 
