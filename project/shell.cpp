@@ -235,7 +235,7 @@ int executeCommands(Expression &expression)
 				}
 				if (isLast && outputFileId >= 0) //if is last command and has to write to file
 				{
-					if (!isFirst) // it can be that a command is the first and last command (single command in the list), so we explicetly check whether it's not the first.
+					if (!isFirst) // it can be that a command is the first and last command (single command in the list), so we explicitly check whether it's not the first.
 					{
 						dup2(pipes[i - 1][READ_END], STDIN_FILENO); // if is not first then it has to read from pipe.
 						close(pipes[i - 1][READ_END]);
@@ -269,10 +269,9 @@ int executeCommands(Expression &expression)
 						close(pipes[i][WRITE_END]);
 					}
 				}
-				// free non used resources (why?)
 
 				executeCommand(expression.commands[i]);
-				abort(); // if the executable is not found, we should abort. (why?)
+				abort(); 
 			}
 
 			if (!isFirst)
