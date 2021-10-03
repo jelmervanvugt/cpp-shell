@@ -43,12 +43,16 @@ When a `cd` is discovered during executing the commands it will call the `chdir`
 The code has error handling in most places. For instance: if performing a `chdir` fails (returns a negative number) it will let the user know through the terminal. If creating a child process was not successful the expression will not be evaluated further and an appropriate error message will be shown. These are some examples, there are more error handling throughout the code.
 
 ## Testing
+In this chapter the tests proving the functionality of the shell are discussed.
+
 ### Weaknesses in provided tests
-The provided unit tests only tests happy paths. That is nice that executing chained command works as it should. However does it also work correctly if the expression is not syntactically correct, or if the command can not be executed correctly? What is then expected? A proper error message? This should also be tested. 
+The provided unit tests only tests happy paths. What this means is that there are only tests for input that is according to the guidelines. However does the shell also work correctly if the expression types in by the user is not syntactically correct, or if an error occurs while executing the expression? Correct error-handeling and appropriate error messaging should also be tested to ensure the correct functionality of the entire shell. 
 
 To improve the test coverage we should extend it to also test exceptional paths, as discussed above.
+
+The performance of the shell should also be tested to ensure its functionality. The load that is able to handle for example. What would happen if thousands of heavy background commands are executed back to back? Would the shell be able to handle these kinds of loads or would it crash? The efficiency could also be tested. How much time does it take the shell to execute commands, and how does it scale when commands require more processing? 
 
 ### Common issues
 By how interprocess communication is implemented the infinite buffer problem is not an issue in our shell. This is due the fact that the output is written to pipe and then read from that same pipe. In that process no intermediate storage is used to store that output. This circumvents the problem that the data stream could be potentially infinite.
 
-Opened file descriptors are also guaranteed to be closed after they are not used anymore. This is done by the fact that they are immediately closed in the child process after the `STDIN_FILENO` or `STDOUT_FILENO` is redirected to the relevant end of the pipe. At the end of the loop the `pipe[i]` that is associated with that iteration is also guaranteed to be closed in the ancestor process. This guarantees that all file descriptors are closed after they are not needed anymore.
+Opened file descriptors are also guaranteed to be closed after they are not used anymore. This is due to the fact that they are immediately closed in the child process after the `STDIN_FILENO` or `STDOUT_FILENO` is redirected to the relevant end of the pipe. At the end of the loop the `pipe[i]` that is associated with that iteration is also guaranteed to be closed in the ancestor process. This guarantees that all file descriptors are closed after they are not needed anymore.
