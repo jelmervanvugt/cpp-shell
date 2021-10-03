@@ -211,6 +211,11 @@ int executeCommands(Expression &expression)
 			}
 
 			pid_t child1 = fork();
+
+			if (child1 == -1){
+				cout << "Creating child process failed. Expression can therefore not be evaluated correctly. Please try again.";
+				break;
+			}
 			if (child1 == 0) //child
 			{
 				//whether a file input/output was handled. Handling file has their own flow, so if a file was handled, the normal flow is not necessary anymore.
