@@ -46,7 +46,7 @@ The code has error handling in most places. For instance: if performing a `chdir
 In this chapter the tests proving the functionality of the shell are discussed.
 
 ### Weaknesses in provided tests
-The provided unit tests only tests happy paths. What this means is that there are only tests for input that is according to the guidelines. However does the shell also work correctly if the expression types in by the user is not syntactically correct, or if an error occurs while executing the expression? Correct error-handeling and appropriate error messaging should also be tested to ensure the correct functionality of the entire shell. 
+The provided unit tests only tests happy paths. What this means is that there are only tests for input that is according to the guidelines. However does the shell also work correctly if the expression typed in by the user is not syntactically correct, or if an error occurs while executing the expression? Correct error-handeling and appropriate error messaging should also be tested to ensure the correct functionality of the entire shell. 
 
 To improve the test coverage we should extend it to also test exceptional paths, as discussed above.
 
