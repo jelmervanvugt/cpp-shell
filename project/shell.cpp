@@ -157,8 +157,8 @@ int executeCommands(Expression &expression)
 	int READ_END = 0;
 	int WRITE_END = 1;
 
-	int outputFileId = -999;
-	int inputFileId = -999;
+	int outputFileId = -1;
+	int inputFileId = -1;
 
 	if (expression.outputToFile != "")
 	{
@@ -198,7 +198,7 @@ int executeCommands(Expression &expression)
 			{
 				cout << "Changing directory not succesfull\n";
 			}
-			
+
 			//if cd is found then only execute that and ignore the other commands. we were allowed to decide how to handle this, and this was the easiest solution.
 			break;
 		}
@@ -206,14 +206,13 @@ int executeCommands(Expression &expression)
 		{
 			if (pipe(pipes[i]))
 			{
-				fprintf(stderr, "Pipe failed.\n");
-				return EXIT_FAILURE;
+				cout << "Creating pipe failed\n";
+				break;
 			}
 
 			pid_t child1 = fork();
 			if (child1 == 0) //child
 			{
-
 				//whether a file input/output was handled. Handling file has their own flow, so if a file was handled, the normal flow is not necessary anymore.
 				bool fileWasHandled = false;
 
@@ -266,6 +265,7 @@ int executeCommands(Expression &expression)
 					}
 				}
 				// free non used resources (why?)
+
 				executeCommand(expression.commands[i]);
 				abort(); // if the executable is not found, we should abort. (why?)
 			}
